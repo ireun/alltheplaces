@@ -9,6 +9,15 @@ from locations.items import Feature
 
 class PaczkomatInpostPLSpider(Spider):
     name = "paczkomat_inpost_pl"
+    brands = {
+        "paczkomat": {"brand": "Paczkomat InPost", "brand_wikidata": "Q110970254"},
+        "appkomat": {
+            "brand": "Appkomat InPost",
+            "brand_wikidata": "",
+            "extras": {"app_operated": "only", "not:brand:wikidata": "Q110970254", "amenity": "parcel_locker"},
+        },
+    }
+
     item_attributes = {"brand": "Paczkomat InPost", "brand_wikidata": "Q110970254"}
     allowed_domains = ["inpost.pl"]
     start_urls = ["https://inpost.pl/sites/default/files/points.json"]
@@ -23,6 +32,12 @@ class PaczkomatInpostPLSpider(Spider):
             # The mapping is available in "load" js function of inpostLocatorMap object
 
             item["ref"] = poi["n"]
+
+            if item["ref"].endswith("APP"):
+                item.update(self.brands["appkomat"])
+            else:
+                item.update(self.brands["paczkomat"])
+
             item["extras"]["description"] = poi["d"]
             item["city"] = poi["c"]
             if "/" not in poi["e"]:
@@ -30,8 +45,6 @@ class PaczkomatInpostPLSpider(Spider):
                 item["street"] = item["street"][:1].upper() + item["street"][1:]
                 if item["street"].startswith("Al."):
                     item["street"] = "Aleja " + item["street"][3:].strip()
-                if item["street"].startswith("Pl."):
-                    item["street"] = "Plac " + item["street"][3:].strip()
                 if item["street"].startswith("Gen."):
                     item["street"] = "Generała " + item["street"][4:].strip()
                 if item["street"].startswith("Ks."):
@@ -40,6 +53,15 @@ class PaczkomatInpostPLSpider(Spider):
                     item["street"] = "Osiedle " + item["street"][3:].strip()
                 if item["street"].startswith("Płk."):
                     item["street"] = "Pułkownika " + item["street"][4:].strip()
+                if item["street"].startswith("Pl."):
+                    item["street"] = "Plac " + item["street"][3:].strip()
+                if item["street"].startswith("Plac ") or item["street"].startswith("Osiedle "):
+                    item["extras"]["addr:place"] = item["street"]
+                    item["street"] = ""
+                if item["street"] == item["city"]:
+                    item["extras"]["addr:place"] = item["city"]
+                    item["city"] = ""
+                    item["street"] = ""
             item["postcode"] = poi["o"]
             if poi["b"].lower() not in ["b/n", "bn", "b.n", "b.n.", "bn.", "brak numeru", "n/n"]:
                 item["housenumber"] = poi["b"]
